@@ -1,4 +1,9 @@
-import { BookOpen, LayoutGrid, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  GraduationCap,
+  LayoutGrid,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -21,5 +26,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: "오프닝",
     icon: BookOpen,
     match: (pathname) => pathname.startsWith("/openings"),
+  },
+  {
+    href: "/train",
+    label: "학습",
+    icon: GraduationCap,
+    match: (pathname) => pathname.startsWith("/train"),
   },
 ];

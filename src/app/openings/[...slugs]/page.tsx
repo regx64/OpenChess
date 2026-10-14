@@ -8,7 +8,8 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import { BookOpen, GitBranch, Scale } from "lucide-react";
+import { BookOpen, GitBranch, Puzzle, Repeat, Scale } from "lucide-react";
+import ViewTracker from "@/components/training/ViewTracker";
 import { normalizeFileName } from "@/lib/utils";
 import {
   getOpeningSource,
@@ -140,8 +141,26 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
 /** 계보·비교 바로 가기 */
 function OpeningTools({ name }: { name: string }) {
   const slug = normalizeFileName(name);
+  // 수비 이름이면 흑, 아니면 백으로 연습
+  const color = /Defense|Defence|Countergambit/.test(name.split(":")[0])
+    ? "b"
+    : "w";
   return (
     <div className="flex flex-wrap gap-2 text-sm">
+      <ViewTracker name={name} />
+      <Link
+        href={`/train/drill?opening=${slug}&color=${color}`}
+        className="inline-flex items-center gap-1 rounded-md border border-primary/50 bg-primary/10 px-2.5 py-1 hover:bg-primary/20"
+      >
+        <Repeat className="size-3.5" />
+        트레이너로 연습
+      </Link>
+      <Link
+        href={`/train/puzzles?opening=${encodeURIComponent(name.split(":")[0])}`}
+        className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-muted"
+      >
+        <Puzzle className="size-3.5" />이 계열 퍼즐
+      </Link>
       <Link
         href={`/openings/tree?focus=${slug}`}
         className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-muted"
