@@ -15,7 +15,8 @@
     "prebuild": "bun run clean",
     "analyze": "cross-env ANALYZE=true next build",
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
-    "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build"
+    "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
+    "openings:build": "bun run bin/build-openings.ts"
   },
   "bin": {
     "namu-it": "./bin/namu-it.ts"

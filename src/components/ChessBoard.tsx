@@ -20,7 +20,6 @@ const Chessboard: React.FC = () => {
     lastMove,
     possibleMoves,
     openingInfo,
-    topGames,
     isLastKnownOpening,
     selectSquare,
     makeMove,
@@ -121,7 +120,6 @@ const Chessboard: React.FC = () => {
         fen={gameState.fen}
         pgn={gameState.pgn}
         openingInfo={openingInfo ?? undefined}
-        topGames={topGames}
         onReset={resetGame}
         onUndo={undoMove}
         isWhiteTurn={gameState.turn === "w"}
