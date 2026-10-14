@@ -32,7 +32,6 @@ async function getOpeningFromPath(openingPath: string) {
       cacheStrategy: modelCacheStrategies.opening.detail,
     });
 
-    console.log("DB query result:", opening);
     return opening;
   } catch (error) {
     console.error("Database query error:", error);
@@ -95,7 +94,6 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
   }
 
   const openingPath = resolvedParams.slugs.join("/").toLowerCase();
-  console.log("오프닝 경로 검색 중:", openingPath);
 
   const opening = await getOpeningFromPath(openingPath);
   if (!opening) {

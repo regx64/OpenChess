@@ -39,16 +39,9 @@ function namuIt(input: string): string {
       replacement: (_, text: string) => "~~" + text + "~~",
     }, // 취소선
 
-    // 하이퍼링크
-    {
-      regex: /\[\[(.*?)\|?(.*?)\]\]/g,
-      replacement: (_, link: string, text: string) =>
-        `[${text || link}](https://namu.wiki/w/${encodeURIComponent(link)})`,
-    },
-
     // 외부 링크
     {
-      regex: /\[\[(https?:\/\/[^\s]+)\|?(.*?)\]\]/g,
+      regex: /\[\[(https?:\/\/[^\s|\]]+)(?:\|([^\]]*))?\]\]/g,
       replacement: (_, url: string, text: string) => `[${text || url}](${url})`,
     },
 
@@ -63,6 +56,13 @@ function namuIt(input: string): string {
     {
       regex: /\[\[youtube\((.*?)\)\]\]/g,
       replacement: (_, id: string) => `https://www.youtube.com/watch?v=${id}`,
+    },
+
+    // 하이퍼링크
+    {
+      regex: /\[\[([^|\]]+)(?:\|([^\]]*))?\]\]/g,
+      replacement: (_, link: string, text: string) =>
+        `[${text || link}](https://namu.wiki/w/${encodeURIComponent(link)})`,
     },
 
     // 표

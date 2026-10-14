@@ -1,11 +1,5 @@
 import { Chess, type Square, Move } from "chess.js";
-import type {
-  Board,
-  GameState,
-  ChessMove,
-  BoardPosition,
-  INITIAL_FEN
-} from "@/types/chess";
+import type { Board, GameState, ChessMove, BoardPosition } from "@/types/chess";
 import {
   fenToBoard,
   coordinatesToSquare,
@@ -168,19 +162,13 @@ export class ChessGameManager {
    * @returns FEN 위치 배열 (최신부터 과거 순서)
    */
   generateBacktrackFens(): string[] {
-    const fens: string[] = [];
-    const totalMoves = this.moveHistory.length;
+    // 처음부터 다시 두지 않고 복사본에서 한 수씩 무르며 수집 (O(n))
+    const tempGame = new Chess();
+    tempGame.loadPgn(this.game.pgn());
 
-    // 현재 위치부터 시작해서 한 수씩 되돌아가기
-    for (let i = totalMoves; i >= 0; i--) {
-      const tempGame = new ChessGameManager();
-      const moves = this.moveHistory.slice(0, i);
-
-      moves.forEach((move) => {
-        tempGame.game.move(move);
-      });
-
-      fens.push(tempGame.game.fen());
+    const fens: string[] = [tempGame.fen()];
+    while (tempGame.undo()) {
+      fens.push(tempGame.fen());
     }
 
     return fens;
