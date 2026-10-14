@@ -58,6 +58,19 @@ export const squareToCoordinates = (square: Square): BoardPosition => {
 };
 
 /**
+ * 헤더 태그([Event "?"] 등)와 결과 표시(*, 1-0 등)를 뺀 수순만 반환
+ * chess.js가 기본 헤더를 항상 붙이므로 화면 표시·공유용으로 수순만 남김
+ * @param game - Chess.js 게임 인스턴스
+ * @returns 수순 문자열 (수가 없으면 빈 문자열)
+ */
+export const getMovesPgn = (game: Chess): string =>
+  game
+    .pgn()
+    .replace(/^\[.*\]\s*$/gm, "")
+    .replace(/\s*(\*|1-0|0-1|1\/2-1\/2)\s*$/, "")
+    .trim();
+
+/**
  * Chess.js 인스턴스에서 게임 상태 추출
  * @param game - Chess.js 게임 인스턴스
  * @returns 게임 상태 객체
@@ -65,7 +78,7 @@ export const squareToCoordinates = (square: Square): BoardPosition => {
 export const getGameState = (game: Chess): GameState => {
   return {
     fen: game.fen(),
-    pgn: game.pgn(),
+    pgn: getMovesPgn(game),
     turn: game.turn() as GameState["turn"],
     isGameOver: game.isGameOver(),
     isCheck: game.inCheck(),
