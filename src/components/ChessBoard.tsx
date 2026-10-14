@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useChessGame } from "@/hooks/useChessGame";
 import { type BoardPosition, BOARD_SIZE } from "@/types/chess";
 import { coordinatesToSquare } from "@/lib/chess";
@@ -8,6 +8,7 @@ import { CSS_CLASSES } from "@/lib/constants";
 import ChessSquare from "./ChessSquare";
 import GameInfo from "./GameInfo";
 import PgnImportDialog from "./PgnImportDialog";
+import OpeningSearch from "./OpeningSearch";
 
 /**
  * 메인 체스보드 컴포넌트
@@ -28,6 +29,14 @@ const Chessboard: React.FC = () => {
     loadFromPgn,
     clearSelection,
   } = useChessGame();
+
+  // 주소에 ?pgn= 이 있으면 (오프닝 문서의 "보드에서 보기") 해당 수순을 보드에 표시
+  useEffect(() => {
+    const pgn = new URLSearchParams(window.location.search).get("pgn");
+    if (pgn) {
+      loadFromPgn(pgn);
+    }
+  }, [loadFromPgn]);
 
   /**
    * 사각형 클릭 처리
@@ -125,6 +134,7 @@ const Chessboard: React.FC = () => {
         isWhiteTurn={gameState.turn === "w"}
         isLastKnownOpening={isLastKnownOpening}
         ImportPGN={() => <PgnImportDialog onImport={loadFromPgn} />}
+        search={<OpeningSearch onSelect={loadFromPgn} />}
       />
     </div>
   );
