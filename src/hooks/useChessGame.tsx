@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Square } from "chess.js";
 import type {
   Board,
@@ -69,21 +69,9 @@ export const useChessGame = (): UseChessGameReturn => {
   }, [gameManager]);
 
   /**
-   * 오프닝 정보를 가져오는 함수
+   * 이 FEN에서 오프닝이 없으면 마지막 알려진 오프닝까지 되짚어 찾음 (PGN 로드 시 설정)
    */
-  const fetchOpeningInfo = useCallback(async (fen: string) => {
-    try {
-      const { opening, topGames: games } = await fetchOpeningFromLichess(fen);
-      setOpeningInfo(opening);
-      setTopGames(games);
-      setIsLastKnownOpening(false);
-    } catch (error) {
-      console.error("오프닝 정보를 가져오는데 실패했습니다:", error);
-      setOpeningInfo(null);
-      setTopGames([]);
-      setIsLastKnownOpening(false);
-    }
-  }, []);
+  const backtrackFenRef = useRef<string | null>(null);
 
   /**
    * 선택 상태를 클리어하는 함수
@@ -168,51 +156,10 @@ export const useChessGame = (): UseChessGameReturn => {
         updateGameState();
         clearSelection();
         setLastMove(null);
-        
-        // PGN 로드 후 오프닝 정보 가져오기
-        const currentFen = gameManager.getGameState().fen;
-        if (currentFen && !gameManager.isInitialPosition()) {
-          // 먼저 현재 위치에서 오프닝 정보 확인
-          fetchOpeningFromLichess(currentFen).then(({ opening, topGames }) => {
-            if (opening) {
-              // 현재 위치에서 오프닝이 발견된 경우
-              setOpeningInfo(opening);
-              setTopGames(topGames);
-              setIsLastKnownOpening(false);
-            } else {
-              // 현재 위치에서 오프닝이 없는 경우, 마지막 알려진 오프닝 찾기
-              const backtrackFens = gameManager.generateBacktrackFens();
-              findLastKnownOpening(backtrackFens).then(({ opening: lastOpening, topGames: lastTopGames }) => {
-                if (lastOpening) {
-                  // 마지막 알려진 오프닝을 openingInfo에 설정하고 플래그로 구분
-                  setOpeningInfo(lastOpening);
-                  setTopGames(lastTopGames);
-                  setIsLastKnownOpening(true);
-                } else {
-                  setOpeningInfo(null);
-                  setTopGames([]);
-                  setIsLastKnownOpening(false);
-                }
-              }).catch(error => {
-                console.error("마지막 오프닝 찾기 실패:", error);
-                setOpeningInfo(null);
-                setTopGames([]);
-                setIsLastKnownOpening(false);
-              });
-            }
-          }).catch(error => {
-            console.error("오프닝 정보 가져오기 실패:", error);
-            setOpeningInfo(null);
-            setTopGames([]);
-            setIsLastKnownOpening(false);
-          });
-        } else {
-          // 초기 위치라면 오프닝 정보 리셋
-          setOpeningInfo(null);
-          setTopGames([]);
-          setIsLastKnownOpening(false);
-        }
-        
+
+        // 오프닝 조회는 FEN 변경 effect에서 처리 (현재 위치에 없으면 되짚어 찾기)
+        backtrackFenRef.current = gameManager.getGameState().fen;
+
         return true;
       }
 
@@ -222,12 +169,49 @@ export const useChessGame = (): UseChessGameReturn => {
   );
 
   // FEN이 변경될 때마다 오프닝 정보 가져오기
+  // 위치가 다시 바뀌면 이전 요청을 취소해 늦게 도착한 응답이 최신 결과를 덮어쓰지 않도록 함
   useEffect(() => {
-    const fen = gameState.fen;
-    if (fen && !gameManager.isInitialPosition()) {
-      fetchOpeningInfo(fen);
+    const backtrack = backtrackFenRef.current === gameState.fen;
+
+    if (!gameState.fen || gameManager.isInitialPosition()) {
+      setOpeningInfo(null);
+      setTopGames([]);
+      setIsLastKnownOpening(false);
+      return;
     }
-  }, [gameState.fen, fetchOpeningInfo, gameManager]);
+
+    const controller = new AbortController();
+
+    const load = async () => {
+      let result = await fetchOpeningFromLichess(
+        gameState.fen,
+        controller.signal,
+      );
+      let isLastKnown = false;
+
+      if (!result.opening && backtrack) {
+        // 현재 위치의 오프닝은 이미 확인했으므로 이전 위치부터 탐색
+        const backtrackFens = gameManager.generateBacktrackFens().slice(1);
+        result = await findLastKnownOpening(backtrackFens, controller.signal);
+        isLastKnown = result.opening !== null;
+      }
+
+      if (controller.signal.aborted) return;
+      setOpeningInfo(result.opening);
+      setTopGames(result.topGames);
+      setIsLastKnownOpening(isLastKnown);
+    };
+
+    load().catch((error) => {
+      if (controller.signal.aborted) return;
+      console.error("오프닝 정보를 가져오는데 실패했습니다:", error);
+      setOpeningInfo(null);
+      setTopGames([]);
+      setIsLastKnownOpening(false);
+    });
+
+    return () => controller.abort();
+  }, [gameState.fen, gameManager]);
 
   return {
     gameManager,

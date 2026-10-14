@@ -12,13 +12,13 @@
 
 ## 🛠️ 기술 스택
 
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) ![supabase](https://img.shields.io/badge/supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white) ![prisma](https://img.shields.io/badge/prisma-000000?style=for-the-badge&logo=prisma&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
 | **Category**  |        **Stack**        |
 | :-----------: | :---------------------: |
 | **Front-end** | `TypeScript`, `Next.js` |
 |  **Styling**  |      `TailwindCSS`      |
-| **Database**  |  `prisma`, `supabase`   |
+| **Content**   |  `MDX` (`openings/`)    |
 |  **Backend**  |         `Rust`          |
 
 ## ✨ 리팩토링 개선사항
