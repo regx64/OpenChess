@@ -65,3 +65,5 @@ ehthumbs.db
 .vercel
 
 secret.txt
+# next dev가 자동으로 만드는 파일
+AGENTS.md

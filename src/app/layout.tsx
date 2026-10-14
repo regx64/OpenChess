@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import type { Metadata, Viewport } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Noto_Sans_KR, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { MobileNav, SiteHeader } from "@/components/layout/SiteHeader";
 
 const notoSansKR = Noto_Sans_KR({
   variable: "--font-noto-sans-kr",
@@ -52,6 +53,16 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#111111" },
+  ],
+};
+
 interface RootLayoutProps {
   children: React.ReactNode;
 }
@@ -60,10 +71,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
-        {/* 이미지 preload 방지를 위한 메타 태그 */}
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
       </head>
       <body
         className={`${notoSansKR.variable} ${geistMono.variable} antialiased`}
@@ -74,8 +87,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
             defaultTheme="dark"
             disableTransitionOnChange
           >
-            <main className="min-h-screen">{children}</main>
-            <Footer />
+            <SiteHeader />
+            {/* 모바일 하단 탭 바에 가리지 않도록 아래 여백 */}
+            <div className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+              <main className="min-h-[calc(100dvh-3rem)] lg:min-h-[calc(100dvh-3.5rem)]">
+                {children}
+              </main>
+              <Footer />
+            </div>
+            <MobileNav />
             <Toaster />
           </ThemeProvider>
         </ErrorBoundary>

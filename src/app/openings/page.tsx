@@ -30,11 +30,8 @@ export default async function OpeningsIndexPage() {
   );
 
   return (
-    <main className="max-w-4xl mx-auto py-8 px-4">
-      <Link href="/" className="text-sm text-muted-foreground hover:underline">
-        ← 체스보드
-      </Link>
-      <h1 className="mt-4 text-4xl font-bold">오프닝 목록</h1>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
+      <h1 className="text-3xl font-bold sm:text-4xl">오프닝 목록</h1>
       <p className="mt-2 text-muted-foreground">
         주요 오프닝 {docs.length}개의 해설입니다.
       </p>
@@ -67,6 +64,6 @@ export default async function OpeningsIndexPage() {
           </ul>
         </section>
       ))}
-    </main>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import "server-only";
-import openingNames from "@/data/opening-names.json";
+import data from "@/data/opening-tree.json";
 import { listOpeningDocs } from "@/lib/openings";
+import { OpeningBook, type OpeningTreeData } from "@/lib/openingBook";
 
 export interface OpeningSearchResult {
   eco: string;
@@ -10,8 +11,7 @@ export interface OpeningSearchResult {
   title?: string;
 }
 
-// [eco, name, pgn] 형태로 저장됨 (bin/build-openings.ts 참고)
-const names: string[][] = openingNames;
+const book = new OpeningBook(data as unknown as OpeningTreeData);
 
 /** 대소문자·악센트·아포스트로피를 무시하고 비교하기 위한 정규화 */
 const normalize = (text: string): string =>
@@ -39,7 +39,7 @@ export async function searchOpenings(
   const candidates: OpeningSearchResult[] = [
     // 한국어 문서 제목 검색용 (영문 이름과 같은 결과로 합쳐짐)
     ...docs.map(({ eco, name, pgn, title }) => ({ eco, name, pgn, title })),
-    ...names.map(([eco, name, pgn]) => ({
+    ...book.catalog().map(({ eco, name, pgn }) => ({
       eco,
       name,
       pgn,
