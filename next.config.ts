@@ -9,7 +9,7 @@ const nextConfig: import("next").NextConfig = {
   outputFileTracingIncludes: {
     "/openings/[...slugs]": ["./openings/**/*"],
     "/openings": ["./openings/**/*"],
-    "/api/openings/search": ["./openings/**/*"],
+    "/": ["./openings/**/*"],
   },
 
   // 프로덕션 최적화
