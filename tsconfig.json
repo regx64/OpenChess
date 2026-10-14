@@ -23,7 +23,8 @@
       "@/*": ["./src/*"]
     },
     "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "types": ["node", "bun"]
   },
   "include": [
     "next-env.d.ts",

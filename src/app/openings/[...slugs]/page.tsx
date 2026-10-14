@@ -67,6 +67,12 @@ async function renderOpeningContent(source: string) {
     components: {
       ChessDiagram,
       code: InlineCode,
+      // 모바일에서 넓은 표는 가로로 스크롤
+      table: (props: React.ComponentProps<"table">) => (
+        <div className="overflow-x-auto">
+          <table {...props} />
+        </div>
+      ),
     },
     options: {
       parseFrontmatter: true,
@@ -113,7 +119,7 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
   const content = await renderOpeningContent(await getOpeningSource(slug));
 
   return (
-    <article className="max-w-3xl mx-auto py-8 px-4">
+    <article className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
       <Link
         href="/openings"
         className="text-sm text-muted-foreground hover:underline"
@@ -126,12 +132,12 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
           <p className="text-sm text-muted-foreground">
             {doc.eco} · {doc.name}
           </p>
-          <h1 className="mt-1 text-4xl font-bold">{doc.title}</h1>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">{doc.title}</h1>
           {doc.summary && (
             <p className="mt-3 text-muted-foreground">{doc.summary}</p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
+            <code className="rounded bg-muted px-2 py-1 font-mono text-sm break-words">
               {doc.pgn}
             </code>
             <Link
@@ -144,7 +150,7 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
         </header>
       )}
 
-      <div className="prose prose-slate dark:prose-invert max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:font-normal">
+      <div className="prose prose-slate dark:prose-invert max-w-none prose-code:break-words prose-code:before:content-none prose-code:after:content-none prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:font-normal">
         {content}
       </div>
     </article>

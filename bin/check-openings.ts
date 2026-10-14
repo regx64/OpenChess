@@ -9,10 +9,10 @@
 import { Chess } from "chess.js";
 import { readdir, readFile } from "fs/promises";
 import matter from "gray-matter";
-import openings from "../src/data/openings.json";
-import { fenToEpd } from "../src/lib/epd";
+import data from "../src/data/opening-tree.json";
+import { OpeningBook, type OpeningTreeData } from "../src/lib/openingBook";
 
-const book: Record<string, string[]> = openings;
+const book = new OpeningBook(data as unknown as OpeningTreeData);
 const REQUIRED = ["title", "name", "eco", "pgn", "group", "summary"];
 
 /** 수순을 두어 보고, 지나온 위치 중 가장 마지막으로 알려진 오프닝 이름을 반환 */
@@ -24,7 +24,8 @@ function playLine(pgn: string): { lastKnown?: string[] } {
   let lastKnown: string[] | undefined;
   for (const move of history) {
     replay.move(move);
-    lastKnown = book[fenToEpd(replay.fen())] ?? lastKnown;
+    const opening = book.openingAt(replay.fen());
+    if (opening) lastKnown = [opening.eco, opening.name];
   }
   return { lastKnown };
 }
