@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -14,7 +14,6 @@ import { Button } from "./ui/button";
 import { CircleHelp, RotateCcw } from "lucide-react";
 import { ShareButton } from "./ShareButton";
 import { normalizeFileName } from "@/lib/utils";
-import { fetchOpening } from "@/hooks/fetchOpening";
 
 interface GameInfoProps {
   fen: string;
@@ -32,14 +31,6 @@ interface GameInfoProps {
   };
 }
 
-interface OpeningData {
-  pgn: string;
-  eco: string;
-  name: string;
-  urlName: string;
-  mdx: string | null;
-}
-
 /**
  * 게임 정보를 표시하는 컴포넌트
  */
@@ -52,37 +43,16 @@ const GameInfo: React.FC<GameInfoProps> = ({
   ImportPGN,
   isLastKnownOpening = false,
 }) => {
-  const [openingData, setOpeningData] = useState<OpeningData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastOpeningInfo, setLastOpeningInfo] = useState<OpeningInfo | null>(null);
+  const [lastOpeningInfo, setLastOpeningInfo] = useState<OpeningInfo | null>(
+    null,
+  );
 
-  /**
-   * 오프닝 데이터 로드
-   */
-  const loadOpeningData = useCallback(async () => {
-    if (!openingInfo) {
-      setOpeningData(null);
-      return;
-    }
-
-    // 현재 오프닝 정보를 마지막 오프닝으로 저장
-    setLastOpeningInfo(openingInfo);
-
-    setIsLoading(true);
-    try {
-      const opening = await fetchOpening(openingInfo);
-      setOpeningData(opening as OpeningData);
-    } catch (error) {
-      console.error("오프닝 정보를 불러오는데 실패했습니다:", error);
-      setOpeningData(null);
-    } finally {
-      setIsLoading(false);
+  // 현재 오프닝 정보를 마지막 오프닝으로 저장
+  useEffect(() => {
+    if (openingInfo) {
+      setLastOpeningInfo(openingInfo);
     }
   }, [openingInfo]);
-
-  useEffect(() => {
-    loadOpeningData();
-  }, [loadOpeningData]);
 
   // 리셋 시 마지막 오프닝 정보도 초기화 (완전히 초기 상태일 때만)
   useEffect(() => {
@@ -92,20 +62,13 @@ const GameInfo: React.FC<GameInfoProps> = ({
     }
   }, [pgn]);
 
-  // 한 수 되돌리기 처리 - 오프닝이 다시 감지되면 마지막 오프닝 정보 업데이트
-  useEffect(() => {
-    if (openingInfo && lastOpeningInfo && openingInfo.name !== lastOpeningInfo.name) {
-      setLastOpeningInfo(openingInfo);
-    }
-  }, [openingInfo, lastOpeningInfo]);
-
   /**
    * 오프닝 정보 렌더링
    */
   const renderOpeningInfo = () => {
     // pgn이 비어있는 초기 상태인지 확인
     const isInitialState = !pgn || pgn.trim() === "";
-    
+
     // 현재 오프닝이 없는 경우
     if (!openingInfo) {
       // 초기 상태라면 기본 메시지 표시
@@ -118,7 +81,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
           </div>
         );
       }
-      
+
       // 마지막 오프닝이 있다면 그것을 표시
       if (lastOpeningInfo) {
         return (
@@ -135,7 +98,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
           </div>
         );
       }
-      
+
       // 마지막 오프닝도 없다면 기본 메시지
       return (
         <div>
@@ -194,13 +157,9 @@ const GameInfo: React.FC<GameInfoProps> = ({
         <hr />
         <div className="leading-7 [&:not(:first-child)]:mt-2 flex flex-row space-x-2">
           <div className="text-gray-400 flex flex-row space-x-2 pr-2">
-            {isLoading ? (
-              <div className="w-8 h-7 bg-muted rounded-sm animate-pulse flex items-center justify-center" />
-            ) : openingData ? (
-              <div className="flex items-center h-full">{openingData.eco}</div>
-            ) : (
-              <div className="flex items-center h-full">N/A</div>
-            )}
+            <div className="flex items-center h-full">
+              {displayOpeningInfo.eco ?? "N/A"}
+            </div>
           </div>
           {pgn}
         </div>

@@ -23,13 +23,9 @@ bun run type-check
 echo "✨ 코드 포맷팅 중..."
 bun run lint:check
 
-# 5. Prisma 클라이언트 생성
-echo "🗄️ Prisma 클라이언트 생성 중..."
-bun run db:generate
-
-# 6. 빌드 실행
+# 5. 빌드 실행
 echo "🏗️ Next.js 빌드 중..."
-NODE_ENV=production bun run build:next
+NODE_ENV=production bun run build
 
 echo "✅ 빌드 완료!"
 

@@ -29,18 +29,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: 5. Prisma 클라이언트 생성
-echo 🗄️ Prisma 클라이언트 생성 중...
-bun run db:generate
-if errorlevel 1 (
-    echo ❌ Prisma 클라이언트 생성 실패
-    exit /b 1
-)
-
-:: 6. 빌드 실행
+:: 5. 빌드 실행
 echo 🏗️ Next.js 빌드 중...
 set NODE_ENV=production
-bun run build:next
+bun run build
 if errorlevel 1 (
     echo ❌ 빌드 실패
     exit /b 1

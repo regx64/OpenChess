@@ -58,8 +58,8 @@ ehthumbs.db
 # TypeScript build info
 *.tsbuildinfo
 
-# Prisma
-prisma/migrations/
+
+
 
 # Vercel
 .vercel
