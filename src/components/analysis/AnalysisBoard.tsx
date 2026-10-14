@@ -17,7 +17,8 @@ import {
   Trash2,
   ArrowUpToLine,
 } from "lucide-react";
-import Board, { type BoardMove } from "@/components/board/Board";
+import { Chess } from "chess.js";
+import Board, { type Arrow, type BoardMove } from "@/components/board/Board";
 import type { Color } from "@/components/board/geometry";
 import { Button } from "@/components/ui/button";
 import OpeningSearch from "@/components/OpeningSearch";
@@ -33,6 +34,7 @@ import MoveList from "./MoveList";
 import OpeningBanner from "./OpeningBanner";
 import ImportDialog from "./ImportDialog";
 import ShareDialog from "./ShareDialog";
+import ExplorerPanel from "./ExplorerPanel";
 
 interface SavedAnalysis {
   pgn: string;
@@ -46,6 +48,15 @@ const analysisStore = createPersistentStore<SavedAnalysis | null>(
   "analysis",
   null,
 );
+
+type PanelTab = "moves" | "explorer";
+/** 마지막으로 연 탭 (기보 / 탐색기) */
+const tabStore = createPersistentStore<PanelTab>("analysis-tab", "moves");
+
+const PANEL_TABS: { id: PanelTab; label: string }[] = [
+  { id: "moves", label: "기보" },
+  { id: "explorer", label: "탐색기" },
+];
 
 /** 입력창에 글을 쓰는 중이면 단축키를 무시 */
 const isTyping = (target: EventTarget | null) =>
@@ -64,6 +75,8 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
   const [tree] = useState(() => new GameTree());
   const version = useGameTree(tree);
   const book = useOpeningBook();
+  const tab = tabStore.use();
+  const [hoverSan, setHoverSan] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<Color>("w");
   const [restored, setRestored] = useState(false);
   const current = tree.current;
@@ -219,6 +232,31 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
     { label: "보드 뒤집기", icon: ArrowUpDown, onClick: flip, disabled: false },
   ];
 
+  // 탐색기 탭: 데이터셋의 다음 수 후보를 화살표로 (수순이 많은 수일수록 진하게)
+  const arrows = useMemo<Arrow[]>(() => {
+    if (tab !== "explorer" || !book) return [];
+    const moves = book.movesFrom(current.fen).slice(0, 6);
+    const max = Math.max(1, ...moves.map((move) => move.lines));
+    const chess = new Chess(current.fen);
+    return moves.flatMap((move) => {
+      try {
+        const { from, to } = chess.move(move.san);
+        chess.undo();
+        const hovered = move.san === hoverSan;
+        return [
+          {
+            from,
+            to,
+            color: hovered ? ("yellow" as const) : ("blue" as const),
+            opacity: hovered ? 1 : 0.25 + 0.6 * (move.lines / max),
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
+  }, [tab, book, current, hoverSan]);
+
   return (
     <div className="analysis mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:flex-row lg:items-start lg:justify-center lg:gap-6 lg:px-6 lg:py-4">
       {/* 보드와 이동 버튼 */}
@@ -228,6 +266,7 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
           orientation={orientation}
           onMove={handleMove}
           lastMove={atStart ? null : { from: current.from, to: current.to }}
+          arrows={arrows}
           className="rounded-none sm:rounded-md"
         />
         <div className="mt-2 grid grid-cols-5 gap-1.5 px-2 sm:px-0">
@@ -254,7 +293,10 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
       >
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <OpeningSearch onSelect={(pgn) => tree.loadPgn(pgn)} />
+            <OpeningSearch
+              docs={docs}
+              onSelect={(result) => tree.loadPgn(result.pgn)}
+            />
           </div>
           <ImportDialog tree={tree} />
           <ShareDialog tree={tree} version={version} />
@@ -284,13 +326,42 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col rounded-lg border bg-card">
-          <MoveList
-            tree={tree}
-            version={version}
-            className="max-h-[45vh] min-h-24 flex-1 p-3 lg:max-h-none"
-          />
-          {!atStart && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card">
+          <div className="flex border-b" role="tablist" aria-label="패널">
+            {PANEL_TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => tabStore.set(id)}
+                className={cn(
+                  "flex-1 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  tab === id
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab === "explorer" ? (
+            <ExplorerPanel
+              tree={tree}
+              version={version}
+              book={book}
+              onHover={setHoverSan}
+              className="max-h-[50vh] min-h-24 flex-1 lg:max-h-none"
+            />
+          ) : (
+            <MoveList
+              tree={tree}
+              version={version}
+              className="max-h-[45vh] min-h-24 flex-1 p-3 lg:max-h-none"
+            />
+          )}
+          {tab === "moves" && !atStart && (
             <div className="flex flex-wrap gap-1 border-t p-2">
               {!tree.isMainline(current) && (
                 <Button

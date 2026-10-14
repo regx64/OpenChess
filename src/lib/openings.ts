@@ -89,3 +89,58 @@ export async function resolveOpeningSlug(slug: string): Promise<string | null> {
       .sort((a, b) => b.key.length - a.key.length)[0]?.slug ?? null
   );
 }
+
+/** 문서 본문에 나오는 수순 하나와 그 수순이 있는 절(제목) */
+export interface DocLine {
+  slug: string;
+  /** 절 제목 */
+  heading: string;
+  /** 절 제목의 id (rehype-slug와 같은 방식) */
+  anchor: string;
+  /** 수순 (SAN 목록) */
+  sans: string[];
+}
+
+/** 제목의 마크다운 표시(코드, 강조, 링크)를 걷어낸 글자 */
+const headingText = (markdown: string) =>
+  markdown
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, "$1")
+    .trim();
+
+/**
+ * 모든 문서의 `1. ...` 수순을 절 제목과 함께 모읍니다.
+ * 보드에서 두는 수순과 맞춰 "이 수순을 다루는 해설 절"로 바로 연결할 때 씁니다.
+ */
+export async function listDocLines(): Promise<DocLine[]> {
+  const { Chess } = await import("chess.js");
+  const { default: GithubSlugger } = await import("github-slugger");
+  const lines: DocLine[] = [];
+
+  for (const slug of await listOpeningSlugs()) {
+    const { content } = matter(await getOpeningSource(slug));
+    const slugger = new GithubSlugger();
+    let heading = "";
+    let anchor = "";
+    for (const row of content.split("\n")) {
+      const title = row.match(/^#{1,6}\s+(.+?)\s*$/);
+      if (title) {
+        heading = headingText(title[1]);
+        anchor = slugger.slug(heading);
+        continue;
+      }
+      if (!anchor) continue;
+      for (const [, line] of row.matchAll(/`(1\. [^`]+)`/g)) {
+        try {
+          const game = new Chess();
+          game.loadPgn(line);
+          lines.push({ slug, heading, anchor, sans: game.history() });
+        } catch {
+          // 잘못된 수순은 openings:check가 잡아냄
+        }
+      }
+    }
+  }
+  return lines;
+}
