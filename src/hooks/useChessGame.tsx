@@ -5,13 +5,12 @@ import type { Square } from "chess.js";
 import type {
   Board,
   OpeningInfo,
-  TopGame,
   ChessMove,
   BoardPosition,
   GameState,
 } from "@/types/chess";
 import { ChessGameManager } from "@/lib/ChessGameManager";
-import { fetchOpeningFromLichess, findLastKnownOpening } from "@/lib/api";
+import { fetchOpening } from "@/lib/api";
 
 interface UseChessGameReturn {
   // 게임 상태
@@ -26,7 +25,6 @@ interface UseChessGameReturn {
 
   // 오프닝 정보
   openingInfo: OpeningInfo | null;
-  topGames: TopGame[];
   isLastKnownOpening: boolean;
 
   // 액션들
@@ -57,7 +55,6 @@ export const useChessGame = (): UseChessGameReturn => {
 
   // 오프닝 정보
   const [openingInfo, setOpeningInfo] = useState<OpeningInfo | null>(null);
-  const [topGames, setTopGames] = useState<TopGame[]>([]);
   const [isLastKnownOpening, setIsLastKnownOpening] = useState<boolean>(false);
 
   /**
@@ -121,7 +118,6 @@ export const useChessGame = (): UseChessGameReturn => {
     setLastMove(null);
     clearSelection();
     setOpeningInfo(null);
-    setTopGames([]);
     setIsLastKnownOpening(false);
   }, [gameManager, updateGameState, clearSelection]);
 
@@ -139,7 +135,6 @@ export const useChessGame = (): UseChessGameReturn => {
       // 초기 위치라면 오프닝 정보 리셋
       if (gameManager.isInitialPosition()) {
         setOpeningInfo(null);
-        setTopGames([]);
         setIsLastKnownOpening(false);
       }
     }
@@ -175,7 +170,6 @@ export const useChessGame = (): UseChessGameReturn => {
 
     if (!gameState.fen || gameManager.isInitialPosition()) {
       setOpeningInfo(null);
-      setTopGames([]);
       setIsLastKnownOpening(false);
       return;
     }
@@ -183,30 +177,21 @@ export const useChessGame = (): UseChessGameReturn => {
     const controller = new AbortController();
 
     const load = async () => {
-      let result = await fetchOpeningFromLichess(
-        gameState.fen,
-        controller.signal,
-      );
-      let isLastKnown = false;
-
-      if (!result.opening && backtrack) {
-        // 현재 위치의 오프닝은 이미 확인했으므로 이전 위치부터 탐색
-        const backtrackFens = gameManager.generateBacktrackFens().slice(1);
-        result = await findLastKnownOpening(backtrackFens, controller.signal);
-        isLastKnown = result.opening !== null;
-      }
+      // PGN을 불러온 위치라면 현재 위치부터 한 수씩 되짚어 마지막으로 알려진 오프닝까지 찾음
+      const fens = backtrack
+        ? gameManager.generateBacktrackFens()
+        : [gameState.fen];
+      const { opening, index } = await fetchOpening(fens, controller.signal);
 
       if (controller.signal.aborted) return;
-      setOpeningInfo(result.opening);
-      setTopGames(result.topGames);
-      setIsLastKnownOpening(isLastKnown);
+      setOpeningInfo(opening);
+      setIsLastKnownOpening(opening !== null && index > 0);
     };
 
     load().catch((error) => {
       if (controller.signal.aborted) return;
       console.error("오프닝 정보를 가져오는데 실패했습니다:", error);
       setOpeningInfo(null);
-      setTopGames([]);
       setIsLastKnownOpening(false);
     });
 
@@ -221,7 +206,6 @@ export const useChessGame = (): UseChessGameReturn => {
     lastMove,
     possibleMoves,
     openingInfo,
-    topGames,
     isLastKnownOpening,
     selectSquare,
     makeMove,

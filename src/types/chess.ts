@@ -31,17 +31,6 @@ export interface Player {
 // 게임 결과 타입
 export type GameResult = "white" | "black" | "draw";
 
-// 상위 게임 정보 인터페이스
-export interface TopGame {
-  uci: string;
-  id: string;
-  white: Player;
-  black: Player;
-  winner?: GameResult;
-  year: number;
-  month: string;
-}
-
 // 체스 이동 정보 인터페이스
 export interface ChessMove {
   from: [number, number];
@@ -61,15 +50,6 @@ export interface GameState {
 
 // 보드 좌표 타입
 export type BoardPosition = [number, number];
-
-// API 응답 타입들
-export interface LichessOpeningResponse {
-  opening?: {
-    eco: string;
-    name: string;
-  };
-  recentGames?: TopGame[];
-}
 
 // 상수
 export const BOARD_SIZE = 8;

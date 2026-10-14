@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { OpeningInfo, TopGame } from "@/types/chess";
+import type { OpeningInfo } from "@/types/chess";
 import { Button } from "./ui/button";
 import { CircleHelp, RotateCcw } from "lucide-react";
 import { ShareButton } from "./ShareButton";
@@ -19,7 +19,6 @@ interface GameInfoProps {
   fen: string;
   pgn: string;
   openingInfo?: OpeningInfo;
-  topGames: TopGame[];
   onReset: () => void;
   onUndo: () => void;
   ImportPGN: () => React.ReactElement;
