@@ -155,7 +155,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
     return (
       <div>
         <hr />
-        <div className="leading-7 [&:not(:first-child)]:mt-2 flex flex-row space-x-2">
+        <div className="leading-7 not-first:mt-2 flex flex-row space-x-2">
           <div className="text-gray-400 flex flex-row space-x-2 pr-2">
             <div className="flex items-center h-full">
               {displayOpeningInfo.eco ?? "N/A"}

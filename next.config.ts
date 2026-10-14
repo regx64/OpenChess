@@ -1,10 +1,3 @@
-import createMDX from "@next/mdx";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import rehypeSlug from "rehype-slug";
-import remarkToc from "remark-toc";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-
 // 번들 분석기 설정
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
@@ -28,7 +21,6 @@ const nextConfig: import("next").NextConfig = {
   // 이미지 최적화 설정
   images: {
     unoptimized: false,
-    domains: [],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60,
@@ -39,64 +31,7 @@ const nextConfig: import("next").NextConfig = {
   experimental: {
     optimizePackageImports: ["@/components", "@/lib", "@/hooks"],
     optimizeCss: true,
-    turbo: {
-      rules: {
-        "*.svg": {
-          loaders: ["@svgr/webpack"],
-          as: "*.js",
-        },
-      },
-    },
-  },
-
-  // 웹팩 최적화
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // 프로덕션 빌드에서 번들 분석 최적화
-    if (!dev && !isServer) {
-      config.optimization.splitChunks = {
-        chunks: "all",
-        cacheGroups: {
-          default: false,
-          vendors: false,
-          vendor: {
-            name: "vendor",
-            chunks: "all",
-            test: /node_modules/,
-            priority: 20,
-          },
-          common: {
-            name: "common",
-            minChunks: 2,
-            chunks: "all",
-            priority: 10,
-            reuseExistingChunk: true,
-            enforce: true,
-          },
-        },
-      };
-    }
-
-    return config;
   },
 };
 
-const withMDX = createMDX({
-  extension: /\.mdx?$/,
-  options: {
-    remarkPlugins: [remarkToc, remarkGfm, remarkBreaks],
-    rehypePlugins: [
-      rehypeSlug,
-      [
-        rehypeAutolinkHeadings,
-        {
-          properties: {
-            className: ["anchor"],
-          },
-        },
-      ],
-    ],
-    providerImportSource: "@mdx-js/react",
-  },
-});
-
-module.exports = withBundleAnalyzer(withMDX(nextConfig));
+module.exports = withBundleAnalyzer(nextConfig);
