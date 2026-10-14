@@ -16,15 +16,22 @@ import {
   RotateCcw,
   Trash2,
   ArrowUpToLine,
+  Cpu,
+  Pencil,
+  Eraser,
 } from "lucide-react";
 import { Chess } from "chess.js";
-import Board, { type Arrow, type BoardMove } from "@/components/board/Board";
+import Board, {
+  type Arrow,
+  type ArrowColor,
+  type BoardMove,
+} from "@/components/board/Board";
 import type { Color } from "@/components/board/geometry";
 import { Button } from "@/components/ui/button";
 import OpeningSearch from "@/components/OpeningSearch";
 import { useGameTree } from "@/hooks/useGameTree";
 import { useOpeningBook } from "@/hooks/useOpeningBook";
-import { GameTree } from "@/lib/game/tree";
+import { GameTree, type Shape, type ShapeColor } from "@/lib/game/tree";
 import { describeEnd, positionStatus } from "@/lib/game/status";
 import { playSound, soundForSan } from "@/lib/sound";
 import { createPersistentStore } from "@/lib/storage";
@@ -35,6 +42,9 @@ import OpeningBanner from "./OpeningBanner";
 import ImportDialog from "./ImportDialog";
 import ShareDialog from "./ShareDialog";
 import ExplorerPanel from "./ExplorerPanel";
+import AnnotationBar from "./AnnotationBar";
+import { EnginePanel, EvalBar } from "./EnginePanel";
+import { useEngine } from "@/hooks/useEngine";
 
 interface SavedAnalysis {
   pgn: string;
@@ -53,10 +63,33 @@ type PanelTab = "moves" | "explorer";
 /** 마지막으로 연 탭 (기보 / 탐색기) */
 const tabStore = createPersistentStore<PanelTab>("analysis-tab", "moves");
 
+/** 엔진을 켜 두었는지 */
+const engineStore = createPersistentStore<boolean>("engine-on", false);
+
 const PANEL_TABS: { id: PanelTab; label: string }[] = [
   { id: "moves", label: "기보" },
   { id: "explorer", label: "탐색기" },
 ];
+
+const NO_SHAPES: Arrow[] = [];
+
+const SHAPE_SWATCHES: Record<ShapeColor, { label: string; css: string }> = {
+  green: { label: "초록", css: "rgb(21, 128, 61)" },
+  red: { label: "빨강", css: "rgb(185, 28, 28)" },
+  blue: { label: "파랑", css: "rgb(29, 78, 216)" },
+  yellow: { label: "노랑", css: "rgb(202, 138, 4)" },
+};
+
+/** 보드 화살표 → PGN에 저장할 그림 (PGN 표준 색만) */
+const toShape = (arrow: Arrow): Shape => ({
+  from: arrow.from,
+  to: arrow.to,
+  color: (["green", "red", "blue", "yellow"] as ArrowColor[]).includes(
+    arrow.color ?? "green",
+  )
+    ? ((arrow.color ?? "green") as ShapeColor)
+    : "green",
+});
 
 /** 입력창에 글을 쓰는 중이면 단축키를 무시 */
 const isTyping = (target: EventTarget | null) =>
@@ -76,10 +109,14 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
   const version = useGameTree(tree);
   const book = useOpeningBook();
   const tab = tabStore.use();
+  const engineOn = engineStore.use();
   const [hoverSan, setHoverSan] = useState<string | null>(null);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawColor, setDrawColor] = useState<ShapeColor>("green");
   const [orientation, setOrientation] = useState<Color>("w");
   const [restored, setRestored] = useState(false);
   const current = tree.current;
+  const { analysis, status: engineStatus } = useEngine(current.fen, engineOn);
 
   // 주소의 ?pgn= / ?fen= (문서의 "보드에서 보기", 공유 링크) 또는 저장된 분석 불러오기
   // (개발 모드에서 effect가 두 번 실행돼도 한 번만 불러오도록 ref로 막음)
@@ -230,6 +267,13 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
       disabled: atEnd,
     },
     { label: "보드 뒤집기", icon: ArrowUpDown, onClick: flip, disabled: false },
+    {
+      label: drawMode ? "그리기 모드 끄기" : "그리기 모드 (화살표·원)",
+      icon: Pencil,
+      onClick: () => setDrawMode(!drawMode),
+      disabled: false,
+      active: drawMode,
+    },
   ];
 
   // 탐색기 탭: 데이터셋의 다음 수 후보를 화살표로 (수순이 많은 수일수록 진하게)
@@ -257,33 +301,112 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
     });
   }, [tab, book, current, hoverSan]);
 
+  // 엔진 최선 수 화살표
+  const bestMove =
+    analysis?.fen === current.fen ? analysis.lines[0]?.pv[0] : undefined;
+  const boardArrows = useMemo<Arrow[]>(
+    () =>
+      bestMove
+        ? [
+            ...arrows,
+            {
+              from: bestMove.slice(0, 2) as Arrow["from"],
+              to: bestMove.slice(2, 4) as Arrow["to"],
+              color: "purple",
+            },
+          ]
+        : arrows,
+    [arrows, bestMove],
+  );
+
   return (
     <div className="analysis mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:flex-row lg:items-start lg:justify-center lg:gap-6 lg:px-6 lg:py-4">
       {/* 보드와 이동 버튼 */}
-      <section className="mx-auto w-[var(--board-size)] max-w-full shrink-0 lg:mx-0">
+      <section className="relative mx-auto w-[var(--board-size)] max-w-full shrink-0 lg:mx-0">
+        {engineOn && (
+          // 데스크톱: 보드 왼쪽 세로 막대
+          <EvalBar
+            analysis={analysis}
+            orientation={orientation}
+            className="absolute -left-5 top-0 hidden !h-[var(--board-size)] lg:block"
+          />
+        )}
         <Board
           fen={current.fen}
           orientation={orientation}
           onMove={handleMove}
           lastMove={atStart ? null : { from: current.from, to: current.to }}
-          arrows={arrows}
+          arrows={boardArrows}
+          drawn={current.shapes ?? NO_SHAPES}
+          onDrawChange={(shapes) =>
+            tree.setShapes(current, shapes.map(toShape))
+          }
+          drawMode={drawMode}
+          drawColor={drawColor}
           className="rounded-none sm:rounded-md"
         />
-        <div className="mt-2 grid grid-cols-5 gap-1.5 px-2 sm:px-0">
-          {navButtons.map(({ label, icon: Icon, onClick, disabled }) => (
-            <Button
-              key={label}
-              variant="secondary"
-              className="h-11 [&_svg]:size-5"
-              aria-label={label}
-              title={label}
-              onClick={onClick}
-              disabled={disabled}
-            >
-              <Icon />
-            </Button>
-          ))}
+        {engineOn && (
+          // 모바일: 보드 아래 가로 막대
+          <EvalBar
+            analysis={analysis}
+            orientation={orientation}
+            horizontal
+            className="mt-1 lg:hidden"
+          />
+        )}
+        <div className="mt-2 grid grid-cols-6 gap-1.5 px-2 sm:px-0">
+          {navButtons.map(
+            ({ label, icon: Icon, onClick, disabled, active }) => (
+              <Button
+                key={label}
+                variant={active ? "default" : "secondary"}
+                aria-pressed={active}
+                className="h-11 [&_svg]:size-5"
+                aria-label={label}
+                title={label}
+                onClick={onClick}
+                disabled={disabled}
+              >
+                <Icon />
+              </Button>
+            ),
+          )}
         </div>
+        {drawMode && (
+          <div className="mt-2 flex items-center gap-2 px-2 text-sm sm:px-0">
+            <span className="text-muted-foreground">그리기 색</span>
+            {(Object.keys(SHAPE_SWATCHES) as ShapeColor[]).map((color) => (
+              <button
+                key={color}
+                type="button"
+                aria-label={`${SHAPE_SWATCHES[color].label} 화살표`}
+                aria-pressed={drawColor === color}
+                onClick={() => setDrawColor(color)}
+                className={cn(
+                  "size-7 rounded-full border-2",
+                  drawColor === color
+                    ? "border-foreground"
+                    : "border-transparent",
+                )}
+                style={{ backgroundColor: SHAPE_SWATCHES[color].css }}
+              />
+            ))}
+            <span className="text-xs text-muted-foreground">
+              끌면 화살표, 누르면 원
+            </span>
+            {(current.shapes?.length ?? 0) > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => tree.setShapes(current, [])}
+              >
+                <Eraser />
+                지우기
+              </Button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 오프닝 정보와 수순 */}
@@ -300,6 +423,16 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
           </div>
           <ImportDialog tree={tree} />
           <ShareDialog tree={tree} version={version} />
+          <Button
+            variant={engineOn ? "default" : "outline"}
+            size="icon"
+            title={engineOn ? "엔진 끄기" : "엔진 켜기 (Stockfish)"}
+            aria-label={engineOn ? "엔진 끄기" : "엔진 켜기"}
+            aria-pressed={engineOn}
+            onClick={() => engineStore.set(!engineOn)}
+          >
+            <Cpu />
+          </Button>
           <Button
             variant="outline"
             size="icon"
@@ -319,6 +452,18 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
             docs={docs}
           />
         </div>
+
+        {engineOn && (
+          <div className="rounded-lg border bg-card p-2">
+            <EnginePanel
+              analysis={analysis?.fen === current.fen ? analysis : null}
+              status={engineStatus}
+              onPlayLine={(sans) => tree.playLine(sans)}
+              moveNumber={Number(current.fen.split(" ")[5]) || 1}
+              turn={current.fen.split(" ")[1] === "b" ? "b" : "w"}
+            />
+          </div>
+        )}
 
         {status.end && (
           <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold">
@@ -360,6 +505,9 @@ const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ docs }) => {
               version={version}
               className="max-h-[45vh] min-h-24 flex-1 p-3 lg:max-h-none"
             />
+          )}
+          {tab === "moves" && !atStart && (
+            <AnnotationBar tree={tree} node={current} />
           )}
           {tab === "moves" && !atStart && (
             <div className="flex flex-wrap gap-1 border-t p-2">

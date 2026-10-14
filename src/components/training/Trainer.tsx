@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Chess } from "chess.js";
 import Link from "next/link";
 import { BookOpen, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import OpeningSearch from "@/components/OpeningSearch";
@@ -24,6 +25,8 @@ import {
 import { cardKey, cardsStore, recordReview } from "@/lib/training/progress";
 import { cardLevel, type Grade, LEVEL_LABELS, today } from "@/lib/training/srs";
 import { cn, normalizeFileName } from "@/lib/utils";
+import { repertoireLines, treeOf } from "@/lib/repertoire";
+import { repertoireStore } from "@/lib/repertoireStore";
 
 type Color = "w" | "b";
 
@@ -37,6 +40,34 @@ interface Config {
   /** 오프닝 주소 이름 (없으면 전체 복습) */
   slug: string | null;
   color: Color;
+  /** 내 레퍼토리 id (있으면 그 레퍼토리의 수순으로 연습) */
+  repertoire?: string;
+}
+
+/** 레퍼토리 수순 카드 이름: "rep:<레퍼토리 id>:<SAN 수순>" */
+const REP_PREFIX = "rep:";
+
+/** 카드 이름 → 연습할 수순 (오프닝 이름이거나 레퍼토리 수순) */
+function lineFromCardName(
+  book: OpeningBook,
+  name: string,
+): TrainingLine | null {
+  if (!name.startsWith(REP_PREFIX)) return lineForName(book, name);
+  const [id, ...rest] = name.slice(REP_PREFIX.length).split(":");
+  if (!repertoireStore.get().some((item) => item.id === id)) return null;
+  const sans = rest.join(":").split(" ").filter(Boolean);
+  return sans.length ? { name, eco: "", sans } : null;
+}
+
+/** 수순에서 마지막으로 이름이 붙은 오프닝 */
+function lastOpening(book: OpeningBook, sans: string[]) {
+  let found: { name: string; eco: string } | null = null;
+  const chess = new Chess();
+  for (const san of sans) {
+    chess.move(san);
+    found = book.openingAt(chess.fen()) ?? found;
+  }
+  return found;
 }
 
 /** 수비 이름이면 흑, 아니면 백으로 연습하는 것이 자연스러움 */
@@ -58,9 +89,12 @@ const GRADE_TEXT: Record<Grade, string> = {
 
 function updateUrl(config: Config | null) {
   const params = new URLSearchParams();
-  if (config?.slug) params.set("opening", config.slug);
-  if (config) params.set("color", config.color);
-  if (config && !config.slug) params.set("mode", "review");
+  if (config?.repertoire) params.set("repertoire", config.repertoire);
+  else {
+    if (config?.slug) params.set("opening", config.slug);
+    if (config) params.set("color", config.color);
+    if (config && !config.slug) params.set("mode", "review");
+  }
   const query = params.toString();
   window.history.replaceState(
     null,
@@ -85,7 +119,13 @@ export default function Trainer({ docs }: { docs: DocRef[] }) {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get("opening");
     const color = params.get("color");
-    if (slug || params.get("mode") === "review") {
+    const repertoire = params.get("repertoire");
+    if (repertoire) {
+      const found = repertoireStore
+        .get()
+        .find((item) => item.id === repertoire);
+      if (found) setConfig({ slug: null, color: found.color, repertoire });
+    } else if (slug || params.get("mode") === "review") {
       setConfig({ slug, color: color === "b" ? "b" : "w" });
     }
   }, []);
@@ -95,7 +135,20 @@ export default function Trainer({ docs }: { docs: DocRef[] }) {
       if (!book) return;
       const cards = cardsStore.get();
       let items: Item[];
-      if (next.slug) {
+      const repertoire = next.repertoire
+        ? repertoireStore.get().find((item) => item.id === next.repertoire)
+        : null;
+      if (repertoire) {
+        const lines = repertoireLines(treeOf(repertoire)).map((sans) => ({
+          name: `${REP_PREFIX}${repertoire.id}:${sans.join(" ")}`,
+          eco: "",
+          sans,
+        }));
+        items = buildSession(lines, cards, repertoire.color).map((item) => ({
+          ...item,
+          color: repertoire.color,
+        }));
+      } else if (next.slug) {
         const entry = findBySlug(book, next.slug);
         if (!entry) return;
         items = buildSession(linesUnder(book, entry), cards, next.color).map(
@@ -108,7 +161,7 @@ export default function Trainer({ docs }: { docs: DocRef[] }) {
         items = dueCards(cards)
           .slice(0, 15)
           .flatMap(({ color, name }) => {
-            const line = lineForName(book, name);
+            const line = lineFromCardName(book, name);
             return line ? [{ line, color, status: "due" as const }] : [];
           });
       }
@@ -208,16 +261,44 @@ function DrillItem({
   const [recorded, setRecorded] = useState(false);
   const { line, color } = item;
 
+  const fromRepertoire = line.name.startsWith(REP_PREFIX);
+  const repertoireTree = useMemo(() => {
+    if (!fromRepertoire) return null;
+    const id = line.name.slice(REP_PREFIX.length).split(":")[0];
+    const found = repertoireStore.get().find((item) => item.id === id);
+    return found ? treeOf(found) : null;
+  }, [fromRepertoire, line.name]);
+  const opening = useMemo(
+    () =>
+      fromRepertoire
+        ? lastOpening(book, line.sans)
+        : { name: line.name, eco: line.eco },
+    [book, fromRepertoire, line],
+  );
+
   const drill = useLineDrill({
     sans: line.sans,
     userColor: color,
-    // 데이터셋의 다른 이론 수는 실수로 세지 않음
-    judge: (ply, san, fen) =>
-      san === line.sans[ply]
-        ? "correct"
-        : book.movesFrom(fen).some((move) => move.san === san)
+    // 데이터셋(레퍼토리 연습이면 내 레퍼토리)의 다른 수는 실수로 세지 않음
+    judge: (ply, san, fen) => {
+      if (san === line.sans[ply]) return "correct";
+      if (repertoireTree) {
+        let node = repertoireTree.root;
+        for (const prev of line.sans.slice(0, ply)) {
+          node = node.children.find((child) => child.san === prev) ?? node;
+        }
+        return node.children.some((child) => child.san === san)
           ? "alternative"
-          : "wrong",
+          : "wrong";
+      }
+      return book.movesFrom(fen).some((move) => move.san === san)
+        ? "alternative"
+        : "wrong";
+    },
+    describe: (verdict, ply, san) =>
+      verdict === "alternative" && repertoireTree
+        ? `${san}도 내 레퍼토리에 있는 수이지만, 이번 수순은 다른 수로 이어집니다.`
+        : null,
     onFinish: (result) => {
       const g = gradeOf(result);
       setGrade(g);
@@ -230,7 +311,7 @@ function DrillItem({
   });
 
   const card = cardsStore.use()[cardKey(color, line.name)];
-  const doc = findDocForName(docs, line.name);
+  const doc = opening ? findDocForName(docs, opening.name) : null;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
@@ -242,9 +323,11 @@ function DrillItem({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">
-            {line.eco} · {line.name}
+            {fromRepertoire ? "내 레퍼토리" : `${line.eco} · ${line.name}`}
           </p>
-          <h2 className="text-xl font-bold">{koreanName(line.name)}</h2>
+          <h2 className="text-xl font-bold">
+            {opening ? koreanName(opening.name) : "레퍼토리 수순"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {line.sans.length}수(반수)짜리 수순입니다. 상대 수는 자동으로
             둡니다.
@@ -289,12 +372,14 @@ function DrillItem({
         )}
 
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link
-            href={openingHref(line.name)}
-            className="text-primary hover:underline"
-          >
-            오프닝 페이지
-          </Link>
+          {opening && (
+            <Link
+              href={openingHref(opening.name)}
+              className="text-primary hover:underline"
+            >
+              오프닝 페이지
+            </Link>
+          )}
           {doc && (
             <Link
               href={`/openings/${doc.slug}`}
@@ -334,7 +419,9 @@ function SessionSummary({
           >
             <span className="min-w-0">
               <span className="block truncate font-medium">
-                {koreanName(item.line.name)}
+                {item.line.name.startsWith(REP_PREFIX)
+                  ? `내 레퍼토리 · ${item.line.sans.length}수`
+                  : koreanName(item.line.name)}
               </span>
               <span className="text-xs text-muted-foreground">
                 {item.color === "w" ? "백" : "흑"} · {item.line.eco}

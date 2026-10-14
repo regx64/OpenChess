@@ -10,6 +10,7 @@ import { findDocSection } from "@/lib/docSections";
 import { koreanName } from "@/lib/koName";
 import { openingHref } from "@/lib/openingDetail";
 import { useDocSections } from "@/hooks/useDocSections";
+import { notesStore } from "@/lib/notes";
 
 interface OpeningBannerProps {
   tree: GameTree;
@@ -23,6 +24,7 @@ interface OpeningBannerProps {
  */
 const OpeningBanner: React.FC<OpeningBannerProps> = ({ tree, book, docs }) => {
   const sections = useDocSections();
+  const notes = notesStore.use();
   const current = tree.current;
 
   if (current === tree.root) {
@@ -69,10 +71,13 @@ const OpeningBanner: React.FC<OpeningBannerProps> = ({ tree, book, docs }) => {
 
   const { opening } = found;
   const doc = findDocForName(docs, opening.name);
+  // 이 오프닝의 문서가 있으면 그 문서 안에서(앞으로 이어질 절 포함),
+  // 없으면 모든 문서에서 이미 지나온 수순을 다루는 절만 찾음
   const section =
     sections && tree.isStandardStart
-      ? (findDocSection(sections, sans, doc ? [doc.slug] : undefined) ??
-        (doc ? null : findDocSection(sections, sans)))
+      ? doc
+        ? findDocSection(sections, sans, [doc.slug])
+        : findDocSection(sections, sans, undefined, true)
       : null;
   const sectionDoc =
     section && docs.find((d) => d.slug === section.section.slug);
@@ -112,6 +117,12 @@ const OpeningBanner: React.FC<OpeningBannerProps> = ({ tree, book, docs }) => {
             <span className="font-mono">{sansToLine(transposedFrom)}</span>{" "}
             순서로 도달하는 위치입니다.
           </span>
+        </p>
+      )}
+      {notes[opening.name] && (
+        <p className="line-clamp-3 rounded bg-muted px-2 py-1 text-xs">
+          <span className="font-semibold">내 메모 </span>
+          {notes[opening.name].text}
         </p>
       )}
       {section && sectionDoc ? (

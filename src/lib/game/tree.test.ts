@@ -99,3 +99,30 @@ describe("PGN", () => {
     expect(tree.current.san).toBe("e6");
   });
 });
+
+describe("그림 주석", () => {
+  test("[%cal]/[%csl] 읽고 쓰기", () => {
+    const tree = parsePgn(
+      "1. e4 { [%cal Gg1f3,Rd7d5] [%csl Yd4] 중앙 장악 } e5",
+    );
+    const e4 = tree.root.children[0];
+    expect(e4.comment).toBe("중앙 장악");
+    expect(e4.shapes).toEqual([
+      { from: "g1", to: "f3", color: "green" },
+      { from: "d7", to: "d5", color: "red" },
+      { from: "d4", to: "d4", color: "yellow" },
+    ]);
+    expect(tree.toPgn()).toBe(
+      "1. e4 { [%cal Gg1f3,Rd7d5] [%csl Yd4] 중앙 장악 } 1... e5",
+    );
+  });
+  test("그림만 있어도 저장", () => {
+    const tree = new GameTree();
+    tree.play("d4");
+    tree.setShapes(tree.current, [{ from: "c2", to: "c4", color: "blue" }]);
+    expect(tree.toPgn()).toBe("1. d4 { [%cal Bc2c4] }");
+    expect(parsePgn(tree.toPgn()).root.children[0].shapes).toEqual([
+      { from: "c2", to: "c4", color: "blue" },
+    ]);
+  });
+});

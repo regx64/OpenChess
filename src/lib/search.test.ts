@@ -88,6 +88,20 @@ describe("문서 절 찾기", () => {
         ?.section.anchor,
     ).toBe("b");
   });
+  test("지나온 수순만 보기", () => {
+    expect(
+      findDocSection(
+        sections,
+        sans("e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5"),
+        undefined,
+        true,
+      )?.section.anchor,
+    ).toBe("c");
+    expect(
+      findDocSection(sections, sans("e4 c5 Nf3"), undefined, true)?.section
+        .anchor,
+    ).toBe("a");
+  });
   test("다른 수순이면 없음", () => {
     expect(findDocSection(sections, sans("d4 d5"))).toBeNull();
   });

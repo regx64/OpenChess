@@ -10,6 +10,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import { BookOpen, GitBranch, Puzzle, Repeat, Scale } from "lucide-react";
 import ViewTracker from "@/components/training/ViewTracker";
+import OpeningNote from "@/components/openings/OpeningNote";
 import { normalizeFileName } from "@/lib/utils";
 import {
   getOpeningSource,
@@ -219,8 +220,9 @@ async function DocPage({ doc }: { doc: OpeningDoc }) {
           <p className="mt-3 text-xs text-muted-foreground">
             본문의 수순을 누르면 옆(모바일은 아래) 보드에서 바로 재생됩니다.
           </p>
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
             <OpeningTools name={doc.name} />
+            <OpeningNote name={doc.name} />
           </div>
         </header>
 
@@ -272,6 +274,7 @@ function NamePage({
         </p>
         <h1 className="text-3xl font-bold sm:text-4xl">{ko}</h1>
         <OpeningTools name={entry.name} />
+        <OpeningNote name={entry.name} />
         {doc && (
           <Link
             href={`/openings/${doc.slug}`}

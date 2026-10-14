@@ -21,7 +21,7 @@ import {
   xyToSquare,
 } from "./geometry";
 
-export type ArrowColor = "green" | "red" | "blue" | "yellow";
+export type ArrowColor = "green" | "red" | "blue" | "yellow" | "purple";
 
 export interface Arrow {
   from: Square;
@@ -54,8 +54,16 @@ export interface BoardProps {
   squareColors?: Partial<Record<Square, string>>;
   /** 우클릭으로 화살표·원 그리기 */
   drawable?: boolean;
+  /**
+   * 그린 화살표를 밖에서 관리할 때 (주면 위치가 바뀌어도 지우지 않음)
+   */
+  drawn?: Arrow[];
   /** 사용자가 그린 화살표가 바뀔 때 */
   onDrawChange?: (arrows: Arrow[]) => void;
+  /** 그리기 모드: 터치·왼쪽 클릭으로도 그리기 (모바일용) */
+  drawMode?: boolean;
+  /** 그리기 모드의 색 */
+  drawColor?: ArrowColor;
   /** 설정과 별개로 좌표 표시 여부를 강제 */
   showCoordinates?: boolean;
   className?: string;
@@ -66,6 +74,7 @@ const ARROW_COLORS: Record<ArrowColor, string> = {
   red: "rgba(185, 28, 28, 0.8)",
   blue: "rgba(29, 78, 216, 0.8)",
   yellow: "rgba(202, 138, 4, 0.85)",
+  purple: "rgba(124, 58, 237, 0.85)",
 };
 
 const PROMOTION_PIECES = ["q", "n", "r", "b"] as const;
@@ -187,7 +196,10 @@ const Board: React.FC<BoardProps> = ({
   arrows = [],
   squareColors,
   drawable = true,
+  drawn: controlledDrawn,
   onDrawChange,
+  drawMode = false,
+  drawColor = "green",
   showCoordinates,
   className,
 }) => {
@@ -202,7 +214,16 @@ const Board: React.FC<BoardProps> = ({
     from: Square;
     to: Square;
   } | null>(null);
-  const [drawn, setDrawn] = useState<Arrow[]>([]);
+  const [innerDrawn, setInnerDrawn] = useState<Arrow[]>([]);
+  const drawn = controlledDrawn ?? innerDrawn;
+  const setDrawn = useCallback(
+    (update: Arrow[] | ((current: Arrow[]) => Arrow[])) => {
+      const next = typeof update === "function" ? update(drawn) : update;
+      if (controlledDrawn) onDrawChange?.(next);
+      else setInnerDrawn(next);
+    },
+    [drawn, controlledDrawn, onDrawChange],
+  );
   const drawStart = useRef<Square | null>(null);
   /** 드래그로 놓은 칸은 애니메이션 없이 바로 표시 */
   const droppedOn = useRef<Square | null>(null);
@@ -237,17 +258,13 @@ const Board: React.FC<BoardProps> = ({
     return { dests, checkSquare };
   }, [fen, movable, onMove, pieces]);
 
-  // 위치가 바뀌면 선택·그림 초기화
+  // 위치가 바뀌면 선택 초기화 (그림은 밖에서 관리하지 않을 때만 지움)
   useEffect(() => {
     setSelected(null);
     setPromotion(null);
-    setDrawn([]);
+    setInnerDrawn([]);
     droppedOn.current = null;
   }, [fen]);
-
-  useEffect(() => {
-    onDrawChange?.(drawn);
-  }, [drawn, onDrawChange]);
 
   const squareFromPoint = useCallback(
     (clientX: number, clientY: number): Square | null => {
@@ -282,12 +299,16 @@ const Board: React.FC<BoardProps> = ({
     const square = squareFromPoint(event.clientX, event.clientY);
     if (!square) return;
 
-    if (event.button === 2) {
-      if (drawable) drawStart.current = square;
+    if (event.button === 2 || (drawMode && event.button === 0)) {
+      if (drawable) {
+        drawStart.current = square;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
       return;
     }
     if (event.button !== 0) return;
-    if (drawn.length) setDrawn([]);
+    // 밖에서 관리하는 그림은 저장된 주석이므로 클릭만으로 지우지 않음
+    if (!controlledDrawn && drawn.length) setDrawn([]);
 
     if (promotion) {
       setPromotion(null);
@@ -332,15 +353,17 @@ const Board: React.FC<BoardProps> = ({
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     const square = squareFromPoint(event.clientX, event.clientY);
 
-    if (event.button === 2 && drawStart.current) {
+    if ((event.button === 2 || drawMode) && drawStart.current) {
       const from = drawStart.current;
       drawStart.current = null;
       if (!square) return;
-      const color: ArrowColor = event.shiftKey
-        ? "red"
-        : event.altKey || event.ctrlKey || event.metaKey
-          ? "blue"
-          : "green";
+      const color: ArrowColor = drawMode
+        ? drawColor
+        : event.shiftKey
+          ? "red"
+          : event.altKey || event.ctrlKey || event.metaKey
+            ? "blue"
+            : "green";
       setDrawn((current) => {
         const exists = current.find((a) => a.from === from && a.to === square);
         const rest = current.filter(
