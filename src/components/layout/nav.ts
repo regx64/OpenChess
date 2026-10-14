@@ -2,6 +2,7 @@ import {
   BookOpen,
   GraduationCap,
   LayoutGrid,
+  ListTree,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,16 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/train",
     label: "학습",
     icon: GraduationCap,
-    match: (pathname) => pathname.startsWith("/train"),
+    match: (pathname) =>
+      ["/train", "/courses", "/recommend"].some((path) =>
+        pathname.startsWith(path),
+      ),
+  },
+  {
+    href: "/repertoire",
+    label: "레퍼토리",
+    icon: ListTree,
+    match: (pathname) =>
+      pathname.startsWith("/repertoire") || pathname.startsWith("/my-games"),
   },
 ];

@@ -22,6 +22,8 @@ export function findDocSection(
   sans: string[],
   /** 이 문서들 중에서만 찾기 (없으면 전체) */
   slugs?: string[],
+  /** 이미 지나온 수순만 (앞으로 이어질 수순은 여러 오프닝으로 갈라지므로 문서를 정하지 못했을 때 사용) */
+  reachedOnly = false,
 ): DocSectionMatch | null {
   if (!sans.length) return null;
   const last = sans[sans.length - 1].replace(/[+#]/g, "");
@@ -43,6 +45,7 @@ export function findDocSection(
       }
       // 너무 일반적인 수순(첫 두 수 이하)은 다른 오프닝과 겹치므로 제외
       if (!same || common < 2) continue;
+      if (reachedOnly && line.length > sans.length) continue;
       const key: [number, number, number] = [common, mentions, -line.length];
       if (
         !best ||

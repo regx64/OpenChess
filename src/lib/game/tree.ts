@@ -19,8 +19,74 @@ export interface MoveNode {
   /** 첫 번째 자식이 본선, 나머지는 변화수 */
   children: MoveNode[];
   comment?: string;
+  /** 이 위치에 그린 화살표·원 (PGN 주석의 [%cal]/[%csl]로 저장) */
+  shapes?: Shape[];
   /** 수 평가 기호 (PGN NAG 번호, 예: 1 = !, 2 = ?) */
   nags?: number[];
+}
+
+export type ShapeColor = "green" | "red" | "blue" | "yellow";
+
+/** 화살표(from≠to) 또는 칸 표시 원(from=to) */
+export interface Shape {
+  from: Square;
+  to: Square;
+  color: ShapeColor;
+}
+
+const SHAPE_CODES: Record<string, ShapeColor> = {
+  G: "green",
+  R: "red",
+  B: "blue",
+  Y: "yellow",
+};
+
+/** 주석에서 [%cal Ge2e4,Rd7d5] [%csl Gd4] 명령을 꺼내고 나머지 글을 돌려줌 */
+export function parseShapes(comment: string): {
+  text: string;
+  shapes: Shape[];
+} {
+  const shapes: Shape[] = [];
+  const text = comment
+    .replace(/\[%(cal|csl)\s+([^\]]*)\]/g, (_, kind: string, list: string) => {
+      for (const item of list.split(",").map((part) => part.trim())) {
+        const match = item.match(/^([GRBY])([a-h][1-8])([a-h][1-8])?$/);
+        if (!match) continue;
+        const from = match[2] as Square;
+        const to = (kind === "cal" ? match[3] : match[2]) as Square | undefined;
+        if (to) shapes.push({ from, to, color: SHAPE_CODES[match[1]] });
+      }
+      return "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+  return { text, shapes };
+}
+
+/** 화살표·원을 PGN 주석 명령으로 */
+export function formatShapes(shapes: Shape[] = []): string {
+  const code = (color: ShapeColor) =>
+    Object.entries(SHAPE_CODES).find(([, value]) => value === color)?.[0] ??
+    "G";
+  const arrows = shapes
+    .filter((s) => s.from !== s.to)
+    .map((s) => `${code(s.color)}${s.from}${s.to}`);
+  const circles = shapes
+    .filter((s) => s.from === s.to)
+    .map((s) => `${code(s.color)}${s.from}`);
+  return [
+    arrows.length ? `[%cal ${arrows.join(",")}]` : "",
+    circles.length ? `[%csl ${circles.join(",")}]` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** 주석 글과 그림을 합친 PGN 주석 내용 (없으면 빈 문자열) */
+function commentBody(node: MoveNode): string {
+  return [formatShapes(node.shapes), node.comment?.replace(/}/g, ")") ?? ""]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export interface MoveInput {
@@ -260,6 +326,12 @@ export class GameTree {
     this.changed();
   }
 
+  /** 위치에 그린 화살표·원 바꾸기 */
+  setShapes(node: MoveNode, shapes: Shape[]): void {
+    node.shapes = shapes.length ? shapes : undefined;
+    this.changed();
+  }
+
   /** 수 평가 기호를 켜고 끕니다. 기호는 한 수에 하나만 */
   toggleNag(node: MoveNode, nag: number): void {
     node.nags = node.nags?.includes(nag) ? [] : [nag];
@@ -325,7 +397,8 @@ export class GameTree {
     );
 
     const tokens: string[] = [];
-    if (comments && this.root.comment) tokens.push(`{ ${this.root.comment} }`);
+    if (comments && commentBody(this.root))
+      tokens.push(`{ ${commentBody(this.root)} }`);
     writeMoves(this.root, true, tokens, { variations, comments });
     if (options.headers) tokens.push(headers.Result ?? "*");
 
@@ -369,7 +442,8 @@ function moveToken(node: MoveNode, forceNumber: boolean): string {
 function annotations(node: MoveNode, options: { comments: boolean }): string[] {
   if (!options.comments) return [];
   const tokens = (node.nags ?? []).map((nag) => `$${nag}`);
-  if (node.comment) tokens.push(`{ ${node.comment.replace(/}/g, ")")} }`);
+  const body = commentBody(node);
+  if (body) tokens.push(`{ ${body} }`);
   return tokens;
 }
 
@@ -385,7 +459,7 @@ function writeMoves(
   while (node.children.length) {
     const [main, ...others] = node.children;
     tokens.push(moveToken(main, force), ...annotations(main, options));
-    force = Boolean(options.comments && main.comment);
+    force = Boolean(options.comments && commentBody(main));
 
     if (options.variations) {
       for (const variation of others) {
@@ -393,7 +467,12 @@ function writeMoves(
           `(${moveToken(variation, true)}`,
           ...annotations(variation, options),
         );
-        writeMoves(variation, Boolean(variation.comment), tokens, options);
+        writeMoves(
+          variation,
+          Boolean(options.comments && commentBody(variation)),
+          tokens,
+          options,
+        );
         tokens[tokens.length - 1] += ")";
       }
       if (others.length) force = true;
@@ -423,8 +502,10 @@ export function parsePgn(pgn: string): GameTree {
         .replace(/^[{;]|}$/g, "")
         .replace(/\s+/g, " ")
         .trim();
-      if (text) {
-        cursor.comment = cursor.comment ? `${cursor.comment} ${text}` : text;
+      const { text: plain, shapes } = parseShapes(text);
+      if (shapes.length) cursor.shapes = [...(cursor.shapes ?? []), ...shapes];
+      if (plain) {
+        cursor.comment = cursor.comment ? `${cursor.comment} ${plain}` : plain;
       }
       continue;
     }

@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Puzzle, Repeat, Swords, Target, Trophy } from "lucide-react";
+import {
+  Compass,
+  FileSearch,
+  ListChecks,
+  Puzzle,
+  Repeat,
+  Swords,
+  Target,
+  Trophy,
+} from "lucide-react";
 import TrainStatus from "@/components/training/TrainStatus";
 
 export const metadata: Metadata = {
@@ -10,6 +19,20 @@ export const metadata: Metadata = {
 };
 
 const MODES = [
+  {
+    href: "/courses",
+    icon: ListChecks,
+    title: "학습 코스",
+    description:
+      "입문부터 고급까지, 해설·연습·함정·퍼즐을 순서대로 따라가는 코스입니다.",
+  },
+  {
+    href: "/recommend",
+    icon: Compass,
+    title: "오프닝 추천",
+    description:
+      "스타일과 수준에 맞는 백·흑 오프닝을 추천받고 바로 레퍼토리로 만드세요.",
+  },
   {
     href: "/train/drill",
     icon: Repeat,
