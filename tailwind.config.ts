@@ -1,21 +1,13 @@
 import type { Config } from "tailwindcss";
-import { spacing } from "tailwindcss/defaultTheme";
 
 export default {
-  darkMode: ["class"],
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/hooks/**/*.{js,ts,jsx,tsx}",
     "./src/lib/**/*.{js,ts,jsx,tsx}",
-  ],
-  // Purge 최적화
-  safelist: [
-    'chess-black',
-    'chess-white',
-    'grid-cols-8',
-    'grid-rows-8',
   ],
   theme: {
     fontFamily: {
@@ -26,7 +18,7 @@ export default {
         DEFAULT: {
           css: {
             "h1,h2,h3,h4": {
-              "scroll-margin-top": spacing[32],
+              "scroll-margin-top": "8rem",
             },
           },
         },
