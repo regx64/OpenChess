@@ -108,3 +108,52 @@ export function exportAllStores(): Record<string, unknown> {
   }
   return data;
 }
+
+/** 백업 파일 형식 */
+export interface Backup {
+  app: "openchess";
+  version: 1;
+  exportedAt: string;
+  data: Record<string, unknown>;
+}
+
+export function createBackup(): Backup {
+  return {
+    app: "openchess",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: exportAllStores(),
+  };
+}
+
+/**
+ * 백업을 되살립니다 (같은 이름의 기록은 덮어씀). 잘못된 파일이면 예외.
+ * 되살린 뒤에는 화면을 새로고침해야 모든 저장소가 새 값을 읽습니다.
+ */
+export function restoreBackup(backup: unknown): number {
+  const value = backup as Partial<Backup>;
+  if (
+    value?.app !== "openchess" ||
+    typeof value.data !== "object" ||
+    value.data === null
+  ) {
+    throw new Error("OpenChess 백업 파일이 아닙니다.");
+  }
+  let count = 0;
+  for (const [name, data] of Object.entries(value.data)) {
+    if (!/^[\w-]+$/.test(name)) continue;
+    window.localStorage.setItem(PREFIX + name, JSON.stringify(data));
+    count++;
+  }
+  return count;
+}
+
+/** 이 앱의 모든 기록 지우기 */
+export function clearAllStores(): void {
+  const keys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key?.startsWith(PREFIX)) keys.push(key);
+  }
+  keys.forEach((key) => window.localStorage.removeItem(key));
+}

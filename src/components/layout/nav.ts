@@ -3,6 +3,7 @@ import {
   GraduationCap,
   LayoutGrid,
   ListTree,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,5 +44,11 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ListTree,
     match: (pathname) =>
       pathname.startsWith("/repertoire") || pathname.startsWith("/my-games"),
+  },
+  {
+    href: "/progress",
+    label: "정복",
+    icon: Trophy,
+    match: (pathname) => pathname.startsWith("/progress"),
   },
 ];

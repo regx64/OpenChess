@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { MobileNav, SiteHeader } from "@/components/layout/SiteHeader";
+import PwaRegister from "@/components/pwa/PwaRegister";
 
 const notoSansKR = Noto_Sans_KR({
   variable: "--font-noto-sans-kr",
@@ -28,8 +29,16 @@ export const metadata: Metadata = {
     default: "OpenChess",
     template: "%s | OpenChess",
   },
-  description: "Find your chess openings - 체스 오프닝을 찾아보세요",
-  keywords: ["chess", "openings", "체스", "오프닝"],
+  description:
+    "3,177개 체스 오프닝을 찾고, 익히고, 내 것으로 만드는 오프닝 학습 앱",
+  keywords: ["chess", "openings", "체스", "오프닝", "레퍼토리", "트레이너"],
+  applicationName: "OpenChess",
+  appleWebApp: {
+    capable: true,
+    title: "OpenChess",
+    statusBarStyle: "black-translucent",
+  },
+  icons: { apple: "/icons/apple-touch-icon.png" },
   authors: [{ name: "OpenChess Team" }],
   creator: "OpenChess Team",
   openGraph: {
@@ -37,7 +46,8 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://openchess.vercel.app",
     title: "OpenChess",
-    description: "Find your chess openings - 체스 오프닝을 찾아보세요",
+    description:
+      "3,177개 체스 오프닝을 찾고, 익히고, 내 것으로 만드는 오프닝 학습 앱",
     siteName: "OpenChess",
   },
   robots: {
@@ -97,6 +107,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             </div>
             <MobileNav />
             <Toaster />
+            <PwaRegister />
           </ThemeProvider>
         </ErrorBoundary>
         <SpeedInsights />
