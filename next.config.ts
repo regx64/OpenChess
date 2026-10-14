@@ -8,6 +8,8 @@ const nextConfig: import("next").NextConfig = {
   // 오프닝 문서(openings/*.mdx)를 런타임에 읽으므로 standalone 출력에 포함
   outputFileTracingIncludes: {
     "/openings/[...slugs]": ["./openings/**/*"],
+    "/openings": ["./openings/**/*"],
+    "/api/openings/search": ["./openings/**/*"],
   },
 
   // 프로덕션 최적화

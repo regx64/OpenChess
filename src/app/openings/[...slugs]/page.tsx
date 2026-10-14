@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { compileMDX } from "next-mdx-remote/rsc";
 import ChessDiagram from "@/components/openings/ChessDiagram";
@@ -8,6 +10,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import {
   getOpeningSource,
+  listOpeningDocs,
   listOpeningSlugs,
   resolveOpeningSlug,
 } from "@/lib/openings";
@@ -26,13 +29,47 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slugs: [slug] }));
 }
 
+export async function generateMetadata({
+  params,
+}: OpeningPageProps): Promise<Metadata> {
+  const { slugs } = await params;
+  const doc = (await listOpeningDocs()).find(
+    (doc) => doc.slug === slugs?.join("-").toLowerCase(),
+  );
+  if (!doc) return {};
+  return {
+    title: `${doc.title} (${doc.name}) - OpenChess`,
+    description: doc.summary,
+  };
+}
+
+/**
+ * 본문의 인라인 코드 중 `1. e4 ...` 형태의 수순은 클릭하면 보드에 표시되는 링크로 렌더링
+ */
+function InlineCode({ children }: { children?: React.ReactNode }) {
+  if (typeof children === "string" && children.startsWith("1. ")) {
+    return (
+      <Link
+        href={`/?pgn=${encodeURIComponent(children)}`}
+        title="보드에서 보기"
+        className="no-underline"
+      >
+        <code className="hover:ring-1 hover:ring-primary">{children}</code>
+      </Link>
+    );
+  }
+  return <code>{children}</code>;
+}
+
 async function renderOpeningContent(source: string) {
   const { content } = await compileMDX({
     source,
     components: {
       ChessDiagram,
+      code: InlineCode,
     },
     options: {
+      parseFrontmatter: true,
       mdxOptions: {
         remarkPlugins: [remarkToc, remarkGfm, remarkBreaks],
         rehypePlugins: [
@@ -72,11 +109,42 @@ export default async function OpeningPage({ params }: OpeningPageProps) {
     redirect(`/openings/${slug}`);
   }
 
+  const doc = (await listOpeningDocs()).find((doc) => doc.slug === slug);
   const content = await renderOpeningContent(await getOpeningSource(slug));
 
   return (
     <article className="max-w-3xl mx-auto py-8 px-4">
-      <div className="prose prose-slate dark:prose-invert max-w-none">
+      <Link
+        href="/openings"
+        className="text-sm text-muted-foreground hover:underline"
+      >
+        ← 오프닝 목록
+      </Link>
+
+      {doc && (
+        <header className="mt-4 mb-8 border-b pb-6">
+          <p className="text-sm text-muted-foreground">
+            {doc.eco} · {doc.name}
+          </p>
+          <h1 className="mt-1 text-4xl font-bold">{doc.title}</h1>
+          {doc.summary && (
+            <p className="mt-3 text-muted-foreground">{doc.summary}</p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
+              {doc.pgn}
+            </code>
+            <Link
+              href={`/?pgn=${encodeURIComponent(doc.pgn)}`}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              보드에서 보기
+            </Link>
+          </div>
+        </header>
+      )}
+
+      <div className="prose prose-slate dark:prose-invert max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:font-normal">
         {content}
       </div>
     </article>

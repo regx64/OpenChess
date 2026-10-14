@@ -143,6 +143,27 @@ build.bat
 ./build.sh
 ```
 
+## 📚 오프닝 문서 추가하기
+
+`openings/` 폴더에 `.mdx` 파일을 추가하면 `/openings/<파일 이름>` 페이지가 생깁니다. 파일 이름은 Lichess 오프닝 이름을 소문자로 바꾸고 띄어쓰기를 `-`로 바꾼 형태입니다 (예: `Queen's Gambit Declined` → `queens-gambit-declined.mdx`).
+
+```mdx
+---
+title: 퀸즈 갬빗 거절            # 한국어 이름 (검색에도 사용)
+name: "Queen's Gambit Declined"  # 오프닝 데이터셋의 영문 이름
+eco: D30
+pgn: "1. d4 d5 2. c4 e6"         # 대표 수순 ("보드에서 보기")
+group: "1. d4 d5"                # 목록 분류
+summary: 한 줄 요약
+aliases:                         # (선택) 같은 문서로 연결할 다른 영문 이름
+  - Some Other Name
+---
+
+본문... 수순은 `1. d4 d5 2. c4 e6`처럼 인라인 코드로 쓰면 클릭 시 보드에 표시됩니다.
+```
+
+문서를 추가하거나 고친 뒤에는 `bun run openings:check`로 frontmatter와 모든 수순이 올바른지 확인하세요.
+
 ## 🤝 기여하기
 
 1. 이 저장소를 포크하세요

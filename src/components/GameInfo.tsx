@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import type { OpeningInfo } from "@/types/chess";
 import { Button } from "./ui/button";
-import { CircleHelp, RotateCcw } from "lucide-react";
+import { BookOpen, CircleHelp, RotateCcw } from "lucide-react";
+import Link from "next/link";
 import { ShareButton } from "./ShareButton";
 import { normalizeFileName } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ interface GameInfoProps {
   onReset: () => void;
   onUndo: () => void;
   ImportPGN: () => React.ReactElement;
+  /** 오프닝 검색창 */
+  search: React.ReactNode;
   isWhiteTurn: boolean;
   isLastKnownOpening?: boolean;
   capturedPieces?: {
@@ -40,6 +43,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
   onReset,
   onUndo,
   ImportPGN,
+  search,
   isLastKnownOpening = false,
 }) => {
   const [lastOpeningInfo, setLastOpeningInfo] = useState<OpeningInfo | null>(
@@ -174,12 +178,20 @@ const GameInfo: React.FC<GameInfoProps> = ({
           <div className="relative">
             <CircleHelp className="mb-4" />
             <div className="absolute inset-y-0 right-0 flex space-x-2">
+              <Button variant="outline" size="icon" title="오프닝 목록" asChild>
+                <Link href="/openings">
+                  <BookOpen />
+                </Link>
+              </Button>
               <ShareButton fen={fen} pgn={pgn} />
               <ImportPGN />
             </div>
           </div>
         </CardTitle>
-        <CardDescription>{renderOpeningInfo()}</CardDescription>
+        {search}
+        <CardDescription className="mt-2">
+          {renderOpeningInfo()}
+        </CardDescription>
       </CardHeader>
 
       <CardContent>{renderPgnSection()}</CardContent>
